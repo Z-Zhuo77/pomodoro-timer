@@ -1,16 +1,20 @@
 const WORK_DURATION = 25 * 60;
+const SHORT_DURATION = 5 * 60;
 const BREAK_DURATION = 5 * 60;
-const CIRCUMFERENCE = 2 * Math.PI * 135; // ~848.23
+const STOPWATCH_MAX = 60 * 60; // 60 分钟后归零
+const CIRCUMFERENCE = 2 * Math.PI * 135;
 
 const state = {
-  mode: 'idle',        // 'idle' | 'working' | 'breaking' | 'paused'
+  timerMode: 'long',           // 'long' | 'short' | 'stopwatch'
+  phase: 'idle',               // 'idle' | 'working' | 'breaking' | 'paused'
+  workDuration: WORK_DURATION,
   timeRemaining: WORK_DURATION,
-  totalTime: WORK_DURATION,
+  stopwatchTime: 0,
   sessionCount: 0,
   intervalId: null,
 };
 
-// DOM elements
+// DOM
 const timerDisplay = document.getElementById('timer-display');
 const sessionLabel = document.getElementById('session-label');
 const sessionCount = document.getElementById('session-count');
@@ -18,6 +22,15 @@ const circleFg = document.querySelector('.timer-circle-fg');
 const btnStart = document.getElementById('btn-start');
 const btnPause = document.getElementById('btn-pause');
 const btnReset = document.getElementById('btn-reset');
+const modeBtns = document.querySelectorAll('.mode-btn');
+
+function isCountdown() {
+  return state.timerMode === 'long' || state.timerMode === 'short';
+}
+
+function isStopwatch() {
+  return state.timerMode === 'stopwatch';
+}
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
@@ -26,43 +39,55 @@ function formatTime(seconds) {
 }
 
 function updateUI() {
-  timerDisplay.textContent = formatTime(state.timeRemaining);
-
-  const progress = state.timeRemaining / state.totalTime;
-  circleFg.style.strokeDashoffset = CIRCUMFERENCE * (1 - progress);
-
-  const isWorking = state.mode === 'working' || (state.mode === 'paused' && state.totalTime === WORK_DURATION);
-  const isBreaking = state.mode === 'breaking' || (state.mode === 'paused' && state.totalTime === BREAK_DURATION);
-  const isIdle = state.mode === 'idle';
-  const isPaused = state.mode === 'paused';
-
-  if (isBreaking) {
-    circleFg.classList.add('break');
-    sessionLabel.textContent = '休息';
-    sessionLabel.classList.add('break');
-  } else {
+  if (isStopwatch()) {
+    timerDisplay.textContent = formatTime(state.stopwatchTime);
+    const progress = (state.stopwatchTime % STOPWATCH_MAX) / STOPWATCH_MAX;
+    circleFg.style.strokeDashoffset = CIRCUMFERENCE * (1 - progress);
     circleFg.classList.remove('break');
-    sessionLabel.textContent = '工作';
+    sessionLabel.textContent = '计时中';
     sessionLabel.classList.remove('break');
+  } else {
+    timerDisplay.textContent = formatTime(state.timeRemaining);
+    const total = state.phase === 'breaking' ? BREAK_DURATION : state.workDuration;
+    const progress = state.timeRemaining / total;
+    circleFg.style.strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+
+    if (state.phase === 'breaking') {
+      circleFg.classList.add('break');
+      sessionLabel.textContent = '休息';
+      sessionLabel.classList.add('break');
+    } else {
+      circleFg.classList.remove('break');
+      sessionLabel.textContent = '工作';
+      sessionLabel.classList.remove('break');
+    }
   }
 
   sessionCount.textContent = state.sessionCount > 0 ? `#${state.sessionCount}` : '';
 
-  // Button states
+  const isIdle = state.phase === 'idle';
+  const isPaused = state.phase === 'paused';
+  const isRunning = state.phase === 'working' || state.phase === 'breaking';
+
   btnStart.disabled = !(isIdle || isPaused);
   btnStart.textContent = isPaused ? '继续' : '开始';
-  btnPause.disabled = !(state.mode === 'working' || state.mode === 'breaking');
+  btnPause.disabled = !isRunning;
   btnReset.disabled = isIdle;
 }
 
 function tick() {
-  state.timeRemaining -= 1;
-
-  if (state.timeRemaining <= 0) {
-    onTimerComplete();
-    return;
+  if (isStopwatch()) {
+    state.stopwatchTime += 1;
+    if (state.stopwatchTime >= STOPWATCH_MAX) {
+      state.stopwatchTime = 0;
+    }
+  } else {
+    state.timeRemaining -= 1;
+    if (state.timeRemaining <= 0) {
+      onTimerComplete();
+      return;
+    }
   }
-
   updateUI();
 }
 
@@ -79,22 +104,18 @@ function playBeep() {
     gain.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + 0.3);
-  } catch (_) {
-    // Ignore audio errors
-  }
+  } catch (_) {}
 }
 
 async function onTimerComplete() {
   clearInterval(state.intervalId);
   state.intervalId = null;
-
   playBeep();
 
-  if (state.mode === 'working') {
+  if (state.phase === 'working') {
     state.sessionCount += 1;
-    state.mode = 'breaking';
+    state.phase = 'breaking';
     state.timeRemaining = BREAK_DURATION;
-    state.totalTime = BREAK_DURATION;
     updateUI();
 
     try {
@@ -104,12 +125,10 @@ async function onTimerComplete() {
       );
     } catch (_) {}
 
-    // Auto-start break
     state.intervalId = setInterval(tick, 1000);
-  } else if (state.mode === 'breaking') {
-    state.mode = 'idle';
-    state.timeRemaining = WORK_DURATION;
-    state.totalTime = WORK_DURATION;
+  } else if (state.phase === 'breaking') {
+    state.phase = 'idle';
+    state.timeRemaining = state.workDuration;
     updateUI();
 
     try {
@@ -121,15 +140,44 @@ async function onTimerComplete() {
   }
 }
 
+function switchMode(mode) {
+  if (state.intervalId !== null) return;
+
+  state.timerMode = mode;
+  modeBtns.forEach(b => b.classList.remove('active'));
+  document.querySelector(`.mode-btn[data-mode="${mode}"]`).classList.add('active');
+
+  if (mode === 'long') {
+    state.workDuration = WORK_DURATION;
+  } else if (mode === 'short') {
+    state.workDuration = SHORT_DURATION;
+  }
+
+  state.phase = 'idle';
+  state.timeRemaining = state.workDuration;
+  state.stopwatchTime = 0;
+  state.sessionCount = 0;
+  updateUI();
+}
+
 function startTimer() {
   if (state.intervalId !== null) return;
 
-  if (state.mode === 'idle') {
-    state.mode = 'working';
-    state.timeRemaining = WORK_DURATION;
-    state.totalTime = WORK_DURATION;
-  } else if (state.mode === 'paused') {
-    state.mode = state.totalTime === BREAK_DURATION ? 'breaking' : 'working';
+  if (state.phase === 'idle') {
+    if (isStopwatch()) {
+      state.phase = 'working';
+    } else {
+      state.phase = 'working';
+      state.timeRemaining = state.workDuration;
+    }
+  } else if (state.phase === 'paused') {
+    if (isStopwatch()) {
+      state.phase = 'working';
+    } else {
+      state.phase = state.timeRemaining <= BREAK_DURATION &&
+                    state.sessionCount > 0 &&
+                    state.phase === 'paused' ? 'breaking' : 'working';
+    }
   }
 
   updateUI();
@@ -141,7 +189,7 @@ function pauseTimer() {
 
   clearInterval(state.intervalId);
   state.intervalId = null;
-  state.mode = 'paused';
+  state.phase = 'paused';
   updateUI();
 }
 
@@ -151,9 +199,9 @@ function resetTimer() {
     state.intervalId = null;
   }
 
-  state.mode = 'idle';
-  state.timeRemaining = WORK_DURATION;
-  state.totalTime = WORK_DURATION;
+  state.phase = 'idle';
+  state.timeRemaining = state.workDuration;
+  state.stopwatchTime = 0;
   state.sessionCount = 0;
   updateUI();
 }
@@ -161,6 +209,6 @@ function resetTimer() {
 btnStart.addEventListener('click', startTimer);
 btnPause.addEventListener('click', pauseTimer);
 btnReset.addEventListener('click', resetTimer);
+modeBtns.forEach(b => b.addEventListener('click', () => switchMode(b.dataset.mode)));
 
-// Initial render
 updateUI();

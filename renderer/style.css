@@ -30,6 +30,33 @@ body {
   letter-spacing: 4px;
 }
 
+.mode-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.mode-btn {
+  border: 2px solid #3498db;
+  outline: none;
+  background: transparent;
+  color: #3498db;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-btn:hover {
+  background: rgba(52, 152, 219, 0.15);
+}
+
+.mode-btn.active {
+  background: #3498db;
+  color: #fff;
+}
+
 .timer-wrapper {
   position: relative;
   width: 280px;
