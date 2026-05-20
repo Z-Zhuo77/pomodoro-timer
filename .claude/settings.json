@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"/c/Users/zhangz/pomodoro\")",
+      "Bash(cp -r \"/d/桌面/first_cc/main.js\" \"/d/桌面/first_cc/preload.js\" \"/d/桌面/first_cc/renderer\" \"/d/桌面/first_cc/package.json\" \"/d/桌面/first_cc/.gitignore\" \"/d/桌面/first_cc/assets\" \"/c/Users/zhangz/pomodoro/\")"
+    ]
+  }
+}

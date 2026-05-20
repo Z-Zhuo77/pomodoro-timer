@@ -1,0 +1,28 @@
+{
+  "name": "pomodoro-timer",
+  "version": "1.0.0",
+  "description": "Desktop Pomodoro Timer",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.3.0"
+  },
+  "build": {
+    "appId": "com.pomodoro.timer",
+    "productName": "Pomodoro Timer",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
+    }
+  }
+}
