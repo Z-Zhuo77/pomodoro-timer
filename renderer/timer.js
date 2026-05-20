@@ -38,11 +38,11 @@ function updateUI() {
 
   if (isBreaking) {
     circleFg.classList.add('break');
-    sessionLabel.textContent = 'Break';
+    sessionLabel.textContent = '休息';
     sessionLabel.classList.add('break');
   } else {
     circleFg.classList.remove('break');
-    sessionLabel.textContent = 'Work';
+    sessionLabel.textContent = '工作';
     sessionLabel.classList.remove('break');
   }
 
@@ -50,7 +50,7 @@ function updateUI() {
 
   // Button states
   btnStart.disabled = !(isIdle || isPaused);
-  btnStart.textContent = isPaused ? 'Resume' : 'Start';
+  btnStart.textContent = isPaused ? '继续' : '开始';
   btnPause.disabled = !(state.mode === 'working' || state.mode === 'breaking');
   btnReset.disabled = isIdle;
 }
@@ -99,8 +99,8 @@ async function onTimerComplete() {
 
     try {
       await window.electronAPI.showNotification(
-        'Work Session Complete!',
-        `Completed session #${state.sessionCount}. Time for a 5-minute break.`
+        '工作时间结束！',
+        `已完成第 ${state.sessionCount} 个番茄。休息 5 分钟吧。`
       );
     } catch (_) {}
 
@@ -114,8 +114,8 @@ async function onTimerComplete() {
 
     try {
       await window.electronAPI.showNotification(
-        'Break Over!',
-        'Time to start working again.'
+        '休息结束！',
+        '该开始下一轮工作了。'
       );
     } catch (_) {}
   }
